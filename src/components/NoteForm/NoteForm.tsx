@@ -1,17 +1,27 @@
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createNote } from "../../services/noteService";
 
 import type { CreateNotePayload } from "../../services/noteService";
 
 interface NoteFormProps {
   onCancel?: () => void;
-  onSubmit: (values: CreateNotePayload) => void;
 }
 
 const validationSchema = Yup.object({
-  title: Yup.string().required("Title is required"),
-  content: Yup.string().required("Content is required"),
-  tag: Yup.string().required("Tag is required"),
+  title: Yup.string()
+    .min(3, "Min 3 characters")
+    .max(50, "Max 50 characters")
+    .required("Title is required"),
+
+  content: Yup.string()
+    .max(500, "Max 500 characters")
+    .notRequired(),
+
+  tag: Yup.string()
+    .oneOf(["Todo", "Work", "Personal", "Meeting", "Shopping"])
+    .required("Tag is required"),
 });
 
 const initialValues: CreateNotePayload = {
@@ -20,15 +30,31 @@ const initialValues: CreateNotePayload = {
   tag: "Todo",
 };
 
-export default function NoteForm({ onCancel, onSubmit }: NoteFormProps) {
+export default function NoteForm({ onCancel }: NoteFormProps) {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: createNote,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      onCancel?.();
+    },
+    onError: (error) => {
+      console.error(error);
+    },
+  });
+
   return (
     <Formik
       initialValues={initialValues}
       validationSchema={validationSchema}
-      onSubmit={(values, { resetForm }) => {
-        onSubmit(values);
-        resetForm();
-        onCancel?.();
+      onSubmit={async (values, { resetForm }) => {
+        try {
+          await mutation.mutateAsync(values);
+          resetForm();
+        } catch (error) {
+          console.error(error);
+        }
       }}
     >
       {() => (
@@ -57,7 +83,9 @@ export default function NoteForm({ onCancel, onSubmit }: NoteFormProps) {
             <ErrorMessage name="tag" component="div" />
           </div>
 
-          <button type="submit">Create note</button>
+          <button type="submit" disabled={mutation.isPending}>
+            Create note
+          </button>
 
           <button type="button" onClick={() => onCancel?.()}>
             Cancel
