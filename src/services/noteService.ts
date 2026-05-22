@@ -1,53 +1,54 @@
 import axios from "axios";
-import type { Note, NoteTag } from "../types/note";
+import type { Note } from "../types/note";
 
-const token = import.meta.env.VITE_NOTEHUB_TOKEN;
+export interface FetchNotesResponse {
+  notes: Note[];
+  totalPages: number;
+}
 
-export const api = axios.create({
-  baseURL: "https://notehub-public.goit.study/api",
-  headers: {
-    Authorization: `Bearer ${token}`,
-  },
-});
+export interface CreateNotePayload {
+  title: string;
+  content: string;
+  tag: string;
+}
 
-export type FetchNotesParams = {
+interface FetchNotesParams {
   page: number;
   perPage: number;
   search?: string;
-};
+}
 
-export type FetchNotesResponse = {
-  notes: Note[];
-  page: number;
-  totalPages: number;
-};
+const api = axios.create({
+  baseURL: "https://notehub-public.goit.study/api",
+  headers: {
+    Authorization: `Bearer ${import.meta.env.VITE_NOTEHUB_TOKEN}`,
+  },
+});
 
-export const fetchNotes = async (params: FetchNotesParams) => {
-  const { data } = await api.get<FetchNotesResponse>("/notes", {
-    params: {
-      page: params.page,
-      perPage: params.perPage,
-      ...(params.search && { search: params.search }),
-    },
+export const fetchNotes = async (
+  params: FetchNotesParams
+): Promise<FetchNotesResponse> => {
+  const response = await api.get<FetchNotesResponse>("/notes", {
+    params,
   });
 
-  return data;
+  return response.data;
 };
 
-export type CreateNotePayload = {
-  title: string;
-  content: string;
-  tag: NoteTag;
-};
+export const createNote = async (
+  payload: CreateNotePayload
+): Promise<Note> => {
+  const response = await api.post<Note>(
+    "/notes",
+    payload
+  );
 
-export const createNote = async (data: CreateNotePayload) => {
-  const { data: result } = await api.post("/notes", data);
-
-  return result;
+  return response.data;
 };
 
 export const deleteNote = async (id: string): Promise<Note> => {
-  const { data } = await api.delete<Note>(`/notes/${id}`);
-
-  return data;
+  const response = await api.delete<Note>(`/notes/${id}`);
+  return response.data;
 };
+
+export default api;
